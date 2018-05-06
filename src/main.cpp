@@ -268,6 +268,12 @@ int main() {
                 // improvement
                 // ref_vel = 29.5;  // mph
                 too_close = true;
+
+                if (lane > 0)
+                {
+                  lane = 0;
+                }
+
               }
             }
           }
