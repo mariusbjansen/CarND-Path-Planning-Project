@@ -1,7 +1,7 @@
 project(Path_Planning)
 
 cmake_minimum_required (VERSION 3.5)
-
+set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-std=c++11)
 
 set(CXX_FLAGS "-Wall")

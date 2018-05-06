@@ -246,6 +246,11 @@ int main() {
           }
 
           bool too_close = false;
+          double v_egoLane = 0.f;
+          double v_leftLane = 0.f;
+          double v_rightLane = 0.f;
+          bool safeLCLeft = true;
+          bool safeLCRight = true;
 
           // find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++) {
@@ -253,34 +258,70 @@ int main() {
             if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(vx * vx + vy * vy);
+              double v_egoLane = sqrt(vx * vx + vy * vy);
               double check_car_s = sensor_fusion[i][5];
 
               // if using previous points can project s value out
-              check_car_s += ((double)prev_size * .02 * check_speed);
+              check_car_s += ((double)prev_size * .02 * v_egoLane);
               // check s vlaues greater than mane and s gap
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
-                // Do some logic here, lower reference velocity so we dont crash
-                // into the car in front of us, could
                 // also flag to try to change lanes
 
-                // TODO set to target's velocity minus thresh as a proposal for
-                // improvement
-                // ref_vel = 29.5;  // mph
                 too_close = true;
+              }
+            }
 
-                if (lane > 0)
-                {
-                  lane = 0;
-                }
+            // left neighbor (if existing)
+            int lane_left = lane - 1;
+            if ((lane_left >= 0) &&
+                (d < (2 + 4 * lane_left + 2) && d > (2 + 4 * lane_left - 2))) {
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double v_leftLane = sqrt(vx * vx + vy * vy);
+              double check_car_s = sensor_fusion[i][5];
+              safeLCLeft = false;  
+              // if using previous points can project s value out
+              check_car_s += ((double)prev_size * .02 * v_leftLane);
+              // check s vlaues greater than mane and s gap
+              if (!((check_car_s > car_s) && ((check_car_s - car_s) < 30))) {
+                // also flag to try to change lanes
 
+                safeLCLeft = true;
+              }
+            }
+
+            // right neighbor (if existing)
+            int lane_right = lane + 1;
+            if ((lane_right >= 0) && (d < (2 + 4 * lane_right + 2) &&
+                                      d > (2 + 4 * lane_right - 2))) {
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double v_rightLane = sqrt(vx * vx + vy * vy);
+              double check_car_s = sensor_fusion[i][5];
+              safeLCRight = false;
+              // if using previous points can project s value out
+              check_car_s += ((double)prev_size * .02 * v_rightLane);
+              // check s vlaues greater than mane and s gap
+              if (!((check_car_s > car_s) && ((check_car_s - car_s) < 30))) {
+                // also flag to try to change lanes
+                safeLCRight = true;
               }
             }
           }
 
+          if ((v_leftLane > (v_egoLane + 2) && safeLCLeft)) {
+            lane = lane + 1;
+            too_close = false;
+          } else if ((v_rightLane > (v_egoLane + 2) && safeLCRight)) {
+            lane = lane + 1;
+            too_close = false;
+          } else {
+          }
+
+          double v_max = 29.5*2.f;
           if (too_close) {
             ref_vel -= .224;
-          } else if (ref_vel < 29.5) {
+          } else if (ref_vel < v_max) {
             ref_vel += .224;
           }
 
