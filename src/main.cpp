@@ -252,21 +252,18 @@ int main() {
           bool safeLCLeft = true;
           bool safeLCRight = true;
 
-          // find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++) {
             float d = sensor_fusion[i][6];
             if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
-              double v_egoLane = sqrt(vx * vx + vy * vy);
+              v_egoLane = sqrt(vx * vx + vy * vy);
               double check_car_s = sensor_fusion[i][5];
 
               // if using previous points can project s value out
               check_car_s += ((double)prev_size * .02 * v_egoLane);
               // check s vlaues greater than mane and s gap
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
-                // also flag to try to change lanes
-
                 too_close = true;
               }
             }
@@ -277,15 +274,13 @@ int main() {
                 (d < (2 + 4 * lane_left + 2) && d > (2 + 4 * lane_left - 2))) {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
-              double v_leftLane = sqrt(vx * vx + vy * vy);
+              v_leftLane = sqrt(vx * vx + vy * vy);
               double check_car_s = sensor_fusion[i][5];
               safeLCLeft = false;  
               // if using previous points can project s value out
               check_car_s += ((double)prev_size * .02 * v_leftLane);
               // check s vlaues greater than mane and s gap
               if (!((check_car_s > car_s) && ((check_car_s - car_s) < 30))) {
-                // also flag to try to change lanes
-
                 safeLCLeft = true;
               }
             }
@@ -296,7 +291,7 @@ int main() {
                                       d > (2 + 4 * lane_right - 2))) {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
-              double v_rightLane = sqrt(vx * vx + vy * vy);
+              v_rightLane = sqrt(vx * vx + vy * vy);
               double check_car_s = sensor_fusion[i][5];
               safeLCRight = false;
               // if using previous points can project s value out
@@ -309,20 +304,23 @@ int main() {
             }
           }
 
-          if ((v_leftLane > (v_egoLane + 2) && safeLCLeft)) {
+          std::cout << "v_ego " << v_egoLane << std::endl;
+          std::cout << "v_left " << v_leftLane << std::endl;
+          std::cout << "v_right " << v_rightLane << std::endl;
+
+          if ((v_leftLane > v_egoLane ) && safeLCLeft && ((lane-1)>=0) &&(car_speed>20.f)) {
+            lane = lane - 1;
+          } else if ((v_rightLane > v_egoLane ) && safeLCRight && ((lane+1)<=2)&&(car_speed>20.f)) {
             lane = lane + 1;
-            too_close = false;
-          } else if ((v_rightLane > (v_egoLane + 2) && safeLCRight)) {
-            lane = lane + 1;
-            too_close = false;
           } else {
           }
 
-          double v_max = 29.5*2.f;
+          double v_max = 29.5*1.5f;
+          double rate_of_change = .224*1.5f;
           if (too_close) {
-            ref_vel -= .224;
+            ref_vel -= rate_of_change;
           } else if (ref_vel < v_max) {
-            ref_vel += .224;
+            ref_vel += rate_of_change;
           }
 
           // Create a list of widely spaced (x,y) waypoints, evenly spaced at
