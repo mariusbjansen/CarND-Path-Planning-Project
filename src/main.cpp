@@ -251,6 +251,8 @@ int main() {
           double v_rightLane = 0.f;
           bool safeLCLeft = true;
           bool safeLCRight = true;
+          bool onceUnsafeLeft = false;
+          bool onceUnsafeRight = false;
 
           for (int i = 0; i < sensor_fusion.size(); i++) {
             float d = sensor_fusion[i][6];
@@ -275,13 +277,16 @@ int main() {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
               v_leftLane = sqrt(vx * vx + vy * vy);
-              double check_car_s = sensor_fusion[i][5];
+              double starting = sensor_fusion[i][5];
               safeLCLeft = false;  
               // if using previous points can project s value out
-              check_car_s += ((double)prev_size * .02 * v_leftLane);
+              double check_car_s = starting + ((double)prev_size * .02 * v_leftLane);
               // check s vlaues greater than mane and s gap
-              if (!((check_car_s > car_s) && ((check_car_s - car_s) < 30))) {
-                safeLCLeft = true;
+              if (check_car_s < (car_s-10) || (starting > (check_car_s + 10))) {
+                safeLCLeft = onceUnsafeLeft;
+              }
+              else {
+                onceUnsafeLeft = true;
               }
             }
 
@@ -292,14 +297,16 @@ int main() {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
               v_rightLane = sqrt(vx * vx + vy * vy);
-              double check_car_s = sensor_fusion[i][5];
+              double starting = sensor_fusion[i][5];
               safeLCRight = false;
               // if using previous points can project s value out
-              check_car_s += ((double)prev_size * .02 * v_rightLane);
+              double check_car_s = starting + ((double)prev_size * .02 * v_rightLane);
               // check s vlaues greater than mane and s gap
-              if (!((check_car_s > car_s) && ((check_car_s - car_s) < 30))) {
-                // also flag to try to change lanes
-                safeLCRight = true;
+              if (check_car_s < (car_s-10) || (starting > (check_car_s + 10))) {
+                safeLCRight = onceUnsafeRight;
+              }
+              else {
+                onceUnsafeRight = true;
               }
             }
           }
