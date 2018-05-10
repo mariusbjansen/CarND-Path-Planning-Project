@@ -1,13 +1,17 @@
+#include "main.hpp"
 #include <math.h>
 #include <uWS/uWS.h>
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <string>
 #include <thread>
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "prediction.hpp"
 #include "spline.h"
 
 using namespace std;
@@ -152,15 +156,19 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x, y};
 }
 
+// Load up map values for waypoint's x,y,s (need to be globally accessible)
+vector<double> map_waypoints_x;
+vector<double> map_waypoints_y;
+vector<double> map_waypoints_s;
+
 int main() {
   uWS::Hub h;
 
-  // Load up map values for waypoint's x,y,s and d normalized normal vectors
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
+  // Load up map values for waypoint's d normalized normal vectors
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
+
+  funcTest();
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -195,10 +203,9 @@ int main() {
   // Have a reference velocity to target
   double ref_vel = 0.0;  // mph
 
-  h.onMessage([&ref_vel, &map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy,
-               &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                      uWS::OpCode opCode) {
+  h.onMessage([&ref_vel, &map_waypoints_dx, &map_waypoints_dy, &lane](
+      uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -222,6 +229,14 @@ int main() {
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
+
+          double car_vx = car_speed * cos(deg2rad(car_yaw));
+          double car_vy = car_speed * sin(deg2rad(car_yaw));
+
+          Lane car_lane = determineLane(car_d);
+
+          VehicleState ego_vehicle(255, car_x, car_y, car_vx, car_vy,
+                                   car_s, car_d, car_lane);
 
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
@@ -254,7 +269,22 @@ int main() {
           bool onceUnsafeLeft = false;
           bool onceUnsafeRight = false;
 
+          vector<VehicleState> state_vect;
           for (int i = 0; i < sensor_fusion.size(); i++) {
+            VehicleState vehicle_state;
+            vehicle_state.m_id = sensor_fusion[i][0];
+            vehicle_state.m_x = sensor_fusion[i][1];
+            vehicle_state.m_y = sensor_fusion[i][2];
+            vehicle_state.m_vx = sensor_fusion[i][3];
+            vehicle_state.m_vy = sensor_fusion[i][4];
+            vehicle_state.m_s = sensor_fusion[i][5];
+            vehicle_state.m_d = sensor_fusion[i][6];
+            vehicle_state.m_lane = determineLane(vehicle_state.m_d);
+
+            if (isRelevant(car_s, vehicle_state.m_s)) {
+              state_vect.push_back(vehicle_state);
+            }
+
             float d = sensor_fusion[i][6];
             if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
               double vx = sensor_fusion[i][3];
@@ -278,14 +308,15 @@ int main() {
               double vy = sensor_fusion[i][4];
               v_leftLane = sqrt(vx * vx + vy * vy);
               double starting = sensor_fusion[i][5];
-              safeLCLeft = false;  
+              safeLCLeft = false;
               // if using previous points can project s value out
-              double check_car_s = starting + ((double)prev_size * .02 * v_leftLane);
+              double check_car_s =
+                  starting + ((double)prev_size * .02 * v_leftLane);
               // check s vlaues greater than mane and s gap
-              if (check_car_s < (car_s-10) || (starting > (check_car_s + 10))) {
+              if (check_car_s < (car_s - 10) ||
+                  (starting > (check_car_s + 10))) {
                 safeLCLeft = onceUnsafeLeft;
-              }
-              else {
+              } else {
                 onceUnsafeLeft = true;
               }
             }
@@ -300,30 +331,94 @@ int main() {
               double starting = sensor_fusion[i][5];
               safeLCRight = false;
               // if using previous points can project s value out
-              double check_car_s = starting + ((double)prev_size * .02 * v_rightLane);
+              double check_car_s =
+                  starting + ((double)prev_size * .02 * v_rightLane);
               // check s vlaues greater than mane and s gap
-              if (check_car_s < (car_s-10) || (starting > (check_car_s + 10))) {
+              if (check_car_s < (car_s - 10) ||
+                  (starting > (check_car_s + 10))) {
                 safeLCRight = onceUnsafeRight;
-              }
-              else {
+              } else {
                 onceUnsafeRight = true;
               }
             }
           }
 
+          uint8_t n_step = 50;
+          Trajectory egoTraj = trajectoryCalc(ego_vehicle, n_step);
+
+          // debug begin
+          /*
+          static int fileStep = 0;
+          ostringstream filename;
+          filename << "ego_traj_" << fileStep << ".txt";
+          string filenamestring = filename.str();
+          ofstream datafile;
+          datafile.open(filenamestring.c_str());
+
+          for (auto ego:egoTraj)
+          {
+            datafile << fixed << setprecision(1) << ego.m_x << " ";
+            datafile << fixed << setprecision(1) << ego.m_y << endl;
+          }
+          fileStep++;
+          datafile.close();
+          */
+          // debug end
+
+          bool ahead = false;
+          bool behind = false;
+
+          for (auto target : state_vect) {
+            Trajectory targetTraj = trajectoryCalc(target, n_step);
+            auto tarIter = targetTraj.begin();
+            auto egoIter = egoTraj.begin();
+            for (; tarIter != targetTraj.end(); ++tarIter, ++egoIter) {
+              if (tarIter->m_lane == egoIter->m_lane) {
+                if (tarIter->m_s>egoIter->m_s)
+                {
+                  ahead = true;
+                }
+                else
+                {
+                  behind = true;
+                }
+              }
+
+              cout << "target s: " << tarIter->m_s << endl;
+              cout << "ego s: " << egoIter->m_s << endl;
+
+            }
+          }
+
+          if (ahead && behind)
+          {
+            cout << "VORN UND HINTEN" << endl;
+          }
+          else if (ahead)
+          {
+            cout << "NUR VORN" << endl;
+          }
+          else if (behind)
+          {
+            cout << "NUR HINTEn" << endl;
+          }
+
+
           std::cout << "v_ego " << v_egoLane << std::endl;
           std::cout << "v_left " << v_leftLane << std::endl;
           std::cout << "v_right " << v_rightLane << std::endl;
 
-          if ((v_leftLane > v_egoLane ) && safeLCLeft && ((lane-1)>=0) &&(car_speed>20.f)) {
+          if ((v_leftLane > v_egoLane) && safeLCLeft && ((lane - 1) >= 0) &&
+              (car_speed > 20.f)) {
             lane = lane - 1;
-          } else if ((v_rightLane > v_egoLane ) && safeLCRight && ((lane+1)<=2)&&(car_speed>20.f)) {
+          } else if ((v_rightLane > v_egoLane) && safeLCRight &&
+                     ((lane + 1) <= 2) && (car_speed > 20.f)) {
             lane = lane + 1;
           } else {
           }
 
-          double v_max = 29.5*1.5f;
-          double rate_of_change = .224*1.5f;
+          double v_max = 29.5 * 1.5f;
+          double rate_of_change = .224 * 1.5f;
           if (too_close) {
             ref_vel -= rate_of_change;
           } else if (ref_vel < v_max) {
@@ -435,7 +530,7 @@ int main() {
 
           // Fill up the rest of our path planner after filling it with previous
           // points, here we will always output 50 points
-          for (int i = 1; i <= 50 - previous_path_x.size(); i++) {
+          for (int i = 1; i <= n_step - previous_path_x.size(); i++) {
             double N = (target_dist / (.02 * ref_vel / 2.24));
             double x_point = x_add_on + (target_x) / N;
             double y_point = s(x_point);
