@@ -11,10 +11,10 @@ void StateMachine::nextState() {
     case LANE_KEEPING:
       if (m_timer.isElapsed() && m_recommend_lc_left) {
         m_state = PREPARE_LC_LEFT;
-        m_timer.reset(m_defTransTime);  
+        m_timer.reset(m_defTransTime);
       } else if (m_timer.isElapsed() && m_recommend_lc_right) {
         m_state = PREPARE_LC_RIGHT;
-        m_timer.reset(m_defTransTime);  
+        m_timer.reset(m_defTransTime);
       } else {
         // stay
       }
@@ -43,13 +43,13 @@ void StateMachine::nextState() {
       break;
 
     case LC_LEFT:
-        m_state = LANE_KEEPING;
-        m_timer.reset(m_defTransTime);
+      m_state = LANE_KEEPING;
+      m_timer.reset(m_defTransTime);
       break;
 
     case LC_RIGHT:
-        m_state = LANE_KEEPING;
-        m_timer.reset(m_defTransTime);
+      m_state = LANE_KEEPING;
+      m_timer.reset(m_defTransTime);
       break;
   }
 }

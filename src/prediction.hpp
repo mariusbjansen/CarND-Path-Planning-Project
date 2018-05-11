@@ -48,6 +48,7 @@ double absSize2D(double x, double y);
 Lane determineLane(double d);
 bool isRelevant(double s, double ego_s);
 
-bool isCollisionFree(const VehicleState& ego, const vector<VehicleState>& targets, uint8_t n_step);
+bool isCollisionFree(const VehicleState& ego,
+                     const vector<VehicleState>& targets, uint8_t n_step);
 
 #endif  // PREDICTION_H

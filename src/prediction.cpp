@@ -4,8 +4,8 @@
 #include <iterator>
 #include <string>
 
-#include "prediction.hpp"
 #include "main.hpp"
+#include "prediction.hpp"
 #include "spline.h"
 
 double absSize2D(double x, double y) { return sqrt(x * x + y * y); }
@@ -62,7 +62,8 @@ double velocityTarAheadinLane(const vector<VehicleState>& vehicles,
   return min_v;
 }
 
-bool isCollisionFree(const VehicleState& ego, const vector<VehicleState>& targets, uint8_t n_step) {
+bool isCollisionFree(const VehicleState& ego,
+                     const vector<VehicleState>& targets, uint8_t n_step) {
   bool collisionFree = true;
   float minSafetyDistance = 8.;
 

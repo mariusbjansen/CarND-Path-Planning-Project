@@ -21,8 +21,8 @@ class Timer {
   }
 
   void reset(uint32_t ticks) {
-      m_ticks = ticks;
-      m_elapsed = false;
+    m_ticks = ticks;
+    m_elapsed = false;
   }
 
   bool isElapsed() const { return m_elapsed; }
@@ -34,7 +34,7 @@ class Timer {
 
 class StateMachine {
  public:
-   enum State {
+  enum State {
     LANE_KEEPING,
     PREPARE_LC_LEFT,
     PREPARE_LC_RIGHT,
@@ -45,16 +45,13 @@ class StateMachine {
   StateMachine();
   void nextState();
 
-  State getState() const
-  {
-      return m_state;
-  }
+  State getState() const { return m_state; }
 
  private:
   State m_state;
   Timer m_timer;
 
-public:
+ public:
   bool m_recommend_lc_left;
   bool m_recommend_lc_right;
   bool m_safe_to_finish;
@@ -62,6 +59,5 @@ public:
 
   uint32_t m_defTransTime = 35;
 };
-
 
 #endif  // STATEMACHINE_H

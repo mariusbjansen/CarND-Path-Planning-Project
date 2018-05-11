@@ -300,115 +300,11 @@ int main() {
                 too_close = true;
               }
             }
-
-            // left neighbor (if existing)
-            int lane_left = lane - 1;
-            if ((lane_left >= 0) &&
-                (d < (2 + 4 * lane_left + 2) && d > (2 + 4 * lane_left - 2))) {
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              v_leftLane = sqrt(vx * vx + vy * vy);
-              double starting = sensor_fusion[i][5];
-              safeLCLeft = false;
-              // if using previous points can project s value out
-              double check_car_s =
-                  starting + ((double)prev_size * .02 * v_leftLane);
-              // check s vlaues greater than mane and s gap
-              if (check_car_s < (car_s - 10) ||
-                  (starting > (check_car_s + 10))) {
-                safeLCLeft = onceUnsafeLeft;
-              } else {
-                onceUnsafeLeft = true;
-              }
-            }
-
-            // right neighbor (if existing)
-            int lane_right = lane + 1;
-            if ((lane_right >= 0) && (d < (2 + 4 * lane_right + 2) &&
-                                      d > (2 + 4 * lane_right - 2))) {
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              v_rightLane = sqrt(vx * vx + vy * vy);
-              double starting = sensor_fusion[i][5];
-              safeLCRight = false;
-              // if using previous points can project s value out
-              double check_car_s =
-                  starting + ((double)prev_size * .02 * v_rightLane);
-              // check s vlaues greater than mane and s gap
-              if (check_car_s < (car_s - 10) ||
-                  (starting > (check_car_s + 10))) {
-                safeLCRight = onceUnsafeRight;
-              } else {
-                onceUnsafeRight = true;
-              }
-            }
           }
 
           uint8_t n_step = 50;
           Trajectory egoTraj = trajectoryCalc(ego_vehicle, n_step);
 
-          // debug begin
-          /*
-          static int fileStep = 0;
-          ostringstream filename;
-          filename << "ego_traj_" << fileStep << ".txt";
-          string filenamestring = filename.str();
-          ofstream datafile;
-          datafile.open(filenamestring.c_str());
-
-          for (auto ego:egoTraj)
-          {
-            datafile << fixed << setprecision(1) << ego.m_x << " ";
-            datafile << fixed << setprecision(1) << ego.m_y << endl;
-          }
-          fileStep++;
-          datafile.close();
-          */
-          // debug end
-
-          bool ahead = false;
-          bool behind = false;
-
-          for (auto target : state_vect) {
-            Trajectory targetTraj = trajectoryCalc(target, n_step);
-            auto tarIter = targetTraj.begin();
-            auto egoIter = egoTraj.begin();
-            for (; tarIter != targetTraj.end(); ++tarIter, ++egoIter) {
-              if (tarIter->m_lane == egoIter->m_lane) {
-                if (tarIter->m_s > egoIter->m_s) {
-                  ahead = true;
-                } else {
-                  behind = true;
-                }
-              }
-
-              // cout << "target s: " << tarIter->m_s << endl;
-              // cout << "ego s: " << egoIter->m_s << endl;
-            }
-          }
-
-          if (ahead && behind) {
-            // cout << "VORN UND HINTEN" << endl;
-          } else if (ahead) {
-            // cout << "NUR VORN" << endl;
-          } else if (behind) {
-            // cout << "NUR HINTEn" << endl;
-          }
-
-          // std::cout << "v_ego " << v_egoLane << std::endl;
-          // std::cout << "v_left " << v_leftLane << std::endl;
-          // std::cout << "v_right " << v_rightLane << std::endl;
-
-/*
-          if ((v_leftLane > v_egoLane) && safeLCLeft && ((lane - 1) >= 0) &&
-              (car_speed > 20.f)) {
-            lane = lane - 1;
-          } else if ((v_rightLane > v_egoLane) && safeLCRight &&
-                     ((lane + 1) <= 2) && (car_speed > 20.f)) {
-            lane = lane + 1;
-          } else {
-          }
-*/
           // recommendation
           // velocity determination
           double velOwn = 0.;
@@ -421,7 +317,8 @@ int main() {
             case 0:
               velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 0);
               velRight = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
-              velRightRight = velocityTarAheadinLane(state_vect, ego_vehicle, 2);
+              velRightRight =
+                  velocityTarAheadinLane(state_vect, ego_vehicle, 2);
               break;
             case 1:
               velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
@@ -435,11 +332,14 @@ int main() {
               break;
           }
 
-          double threshCompare = velOwn+2.;
+          double threshCompare = velOwn + 2.;
           static uint32_t notInBestLane = 0;
-          // todo: left and right need to compete for better lane change direction!
-          // todo: what about double lange changes? driving left, slower vehicle middle but right is free?!
-          if (max(velRight,velRightRight) > threshCompare) {
+          // todo: left and right need to compete for better lane change
+          // direction!
+          // todo: take distance into account?
+          // todo: what about double lange changes? driving left, slower vehicle
+          // middle but right is free?!
+          if (max(velRight, velRightRight) > threshCompare) {
             statemachine.m_recommend_lc_right = true;
             statemachine.m_recommend_lc_left = false;
           } else if (max(velLeft, velLeftLeft) > threshCompare) {
@@ -452,7 +352,7 @@ int main() {
           }
 
           // safe to finish
-          
+
           if (statemachine.getState() == StateMachine::PREPARE_LC_LEFT) {
             auto virtual_ego = ego_vehicle;
             virtual_ego.m_lane = Lane(virtual_ego.m_lane - 1);
@@ -465,34 +365,37 @@ int main() {
             virtual_ego.m_lane = Lane(virtual_ego.m_lane + 1);
             statemachine.m_safe_to_finish =
                 isCollisionFree(virtual_ego, state_vect, n_step);
-          }          
+          }
 
-         float laneTrajectory = lane;
-         statemachine.nextState();
+          float laneTrajectory = lane;
+          statemachine.nextState();
 
-         switch (statemachine.getState()) {
-           case StateMachine::LANE_KEEPING:
-           cout << "LANE KEEPING" << endl;
-           break;
-           case StateMachine::PREPARE_LC_LEFT:
-           laneTrajectory -= 0.25;
-           cout << "LEFT CHANGE PREPARE" << endl;
-           break;
-           case StateMachine::PREPARE_LC_RIGHT:
-           laneTrajectory += 0.25;
-           cout << "RIGHT CHANGE PREPARE" << endl;
-           break;
-           case StateMachine::LC_LEFT:
-           laneTrajectory -= 1;
-           lane -= 1;
-           cout << "PERFORM LEFT" << endl;
-           break;
-           case StateMachine::LC_RIGHT:
-           laneTrajectory += 1;
-           lane += 1;
-           cout << "PERFORM RIGHT" << endl;
-           break;
-         }
+#define DEBUG
+#ifdef DEBUG
+          switch (statemachine.getState()) {
+            case StateMachine::LANE_KEEPING:
+              cout << "LANE KEEPING" << endl;
+              break;
+            case StateMachine::PREPARE_LC_LEFT:
+              laneTrajectory -= 0.25;
+              cout << "LEFT CHANGE PREPARE" << endl;
+              break;
+            case StateMachine::PREPARE_LC_RIGHT:
+              laneTrajectory += 0.25;
+              cout << "RIGHT CHANGE PREPARE" << endl;
+              break;
+            case StateMachine::LC_LEFT:
+              laneTrajectory -= 1;
+              lane -= 1;
+              cout << "PERFORM LEFT" << endl;
+              break;
+            case StateMachine::LC_RIGHT:
+              laneTrajectory += 1;
+              lane += 1;
+              cout << "PERFORM RIGHT" << endl;
+              break;
+          }
+#endif  // DEBUG
 
           double v_max = 29.5 * 1.5f;
           double rate_of_change = .224 * 1.5f;
