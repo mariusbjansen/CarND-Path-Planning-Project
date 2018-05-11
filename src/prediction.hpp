@@ -2,6 +2,7 @@
 #ifndef PREDICTION_H
 #define PREDICTION_H
 #include <iostream>
+#include <limits>
 #include <map>
 #include <random>
 #include <string>
@@ -25,8 +26,8 @@ struct VehicleState {
   // added
   Lane m_lane;  // car's lane position
 
-  VehicleState(uint8_t id, float x, float y, float vx, float vy,
-               float s, float d, Lane l) {
+  VehicleState(uint8_t id, float x, float y, float vx, float vy, float s,
+               float d, Lane l) {
     m_id = id;
     m_x = x;
     m_y = y;
@@ -44,8 +45,12 @@ using Trajectory = vector<VehicleState>;
 using XY = vector<double>;
 
 Trajectory trajectoryCalc(const VehicleState& car, uint8_t n_step);
+double velocityTarAheadinLane(const vector<VehicleState>& vehicles,
+                              const VehicleState& ego, uint8_t lane);
 double absSize2D(double x, double y);
 Lane determineLane(double d);
 bool isRelevant(double s, double ego_s);
+
+bool isCollisionFree(const VehicleState& ego, const vector<VehicleState>& targets, uint8_t n_step);
 
 #endif  // PREDICTION_H

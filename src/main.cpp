@@ -13,6 +13,7 @@
 #include "json.hpp"
 #include "prediction.hpp"
 #include "spline.h"
+#include "statemachine.hpp"
 
 using namespace std;
 
@@ -203,9 +204,11 @@ int main() {
   // Have a reference velocity to target
   double ref_vel = 0.0;  // mph
 
-  h.onMessage([&ref_vel, &map_waypoints_dx, &map_waypoints_dy, &lane](
-      uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-      uWS::OpCode opCode) {
+  StateMachine statemachine;
+
+  h.onMessage([&ref_vel, &map_waypoints_dx, &map_waypoints_dy, &lane,
+               &statemachine](uWS::WebSocket<uWS::SERVER> ws, char *data,
+                              size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -235,8 +238,8 @@ int main() {
 
           Lane car_lane = determineLane(car_d);
 
-          VehicleState ego_vehicle(255, car_x, car_y, car_vx, car_vy,
-                                   car_s, car_d, car_lane);
+          VehicleState ego_vehicle(255, car_x, car_y, car_vx, car_vy, car_s,
+                                   car_d, car_lane);
 
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
@@ -374,40 +377,31 @@ int main() {
             auto egoIter = egoTraj.begin();
             for (; tarIter != targetTraj.end(); ++tarIter, ++egoIter) {
               if (tarIter->m_lane == egoIter->m_lane) {
-                if (tarIter->m_s>egoIter->m_s)
-                {
+                if (tarIter->m_s > egoIter->m_s) {
                   ahead = true;
-                }
-                else
-                {
+                } else {
                   behind = true;
                 }
               }
 
-              cout << "target s: " << tarIter->m_s << endl;
-              cout << "ego s: " << egoIter->m_s << endl;
-
+              // cout << "target s: " << tarIter->m_s << endl;
+              // cout << "ego s: " << egoIter->m_s << endl;
             }
           }
 
-          if (ahead && behind)
-          {
-            cout << "VORN UND HINTEN" << endl;
-          }
-          else if (ahead)
-          {
-            cout << "NUR VORN" << endl;
-          }
-          else if (behind)
-          {
-            cout << "NUR HINTEn" << endl;
+          if (ahead && behind) {
+            // cout << "VORN UND HINTEN" << endl;
+          } else if (ahead) {
+            // cout << "NUR VORN" << endl;
+          } else if (behind) {
+            // cout << "NUR HINTEn" << endl;
           }
 
+          // std::cout << "v_ego " << v_egoLane << std::endl;
+          // std::cout << "v_left " << v_leftLane << std::endl;
+          // std::cout << "v_right " << v_rightLane << std::endl;
 
-          std::cout << "v_ego " << v_egoLane << std::endl;
-          std::cout << "v_left " << v_leftLane << std::endl;
-          std::cout << "v_right " << v_rightLane << std::endl;
-
+/*
           if ((v_leftLane > v_egoLane) && safeLCLeft && ((lane - 1) >= 0) &&
               (car_speed > 20.f)) {
             lane = lane - 1;
@@ -416,6 +410,86 @@ int main() {
             lane = lane + 1;
           } else {
           }
+*/
+          // recommendation
+          // velocity determination
+          double velOwn = 0.;
+          double velRight = 0.;
+          double velLeft = 0.;
+
+          switch (lane) {
+            case 0:
+              velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 0);
+              velRight = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
+              break;
+            case 1:
+              velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
+              velRight = velocityTarAheadinLane(state_vect, ego_vehicle, 2);
+              velLeft = velocityTarAheadinLane(state_vect, ego_vehicle, 0);
+              break;
+            case 2:
+              velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 2);
+              velLeft = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
+              break;
+          }
+
+          float threshVelToChange = 4.f;
+          // todo: left and right need to compete for better lane change direction!
+          // todo: what about double lange changes? driving left, slower vehicle middle but right is free?!
+          if (velRight > (velOwn + threshVelToChange)) {
+            statemachine.m_recommend_lc_right = true;
+            statemachine.m_recommend_lc_left = false;
+          } else if (velLeft > (velOwn + threshVelToChange)) {
+            statemachine.m_recommend_lc_left = true;
+            statemachine.m_recommend_lc_right = false;
+          } else {
+            statemachine.m_recommend_lc_left = false;
+            statemachine.m_recommend_lc_right = false;
+            // stay
+          }
+
+          // safe to finish
+          
+          if (statemachine.getState() == StateMachine::PREPARE_LC_LEFT) {
+            auto virtual_ego = ego_vehicle;
+            virtual_ego.m_lane = Lane(virtual_ego.m_lane - 1);
+            statemachine.m_safe_to_finish =
+                isCollisionFree(virtual_ego, state_vect, n_step);
+          }
+
+          if (statemachine.getState() == StateMachine::PREPARE_LC_RIGHT) {
+            auto virtual_ego = ego_vehicle;
+            virtual_ego.m_lane = Lane(virtual_ego.m_lane + 1);
+            statemachine.m_safe_to_finish =
+                isCollisionFree(virtual_ego, state_vect, n_step);
+          }          
+
+         float laneTrajectory = lane;
+         statemachine.nextState();
+
+         switch (statemachine.getState()) {
+           case StateMachine::LANE_KEEPING:
+           cout << "LANE KEEPING" << endl;
+           break;
+           case StateMachine::PREPARE_LC_LEFT:
+           laneTrajectory -= 0.25;
+           cout << "LEFT CHANGE PREPARE" << endl;
+           break;
+           case StateMachine::PREPARE_LC_RIGHT:
+           laneTrajectory += 0.25;
+           cout << "RIGHT CHANGE PREPARE" << endl;
+           break;
+           case StateMachine::LC_LEFT:
+           laneTrajectory -= 1;
+           lane -= 1;
+           cout << "PERFORM LEFT" << endl;
+           break;
+           case StateMachine::LC_RIGHT:
+           laneTrajectory += 1;
+           lane += 1;
+           cout << "PERFORM RIGHT" << endl;
+           break;
+         }
 
           double v_max = 29.5 * 1.5f;
           double rate_of_change = .224 * 1.5f;
@@ -471,13 +545,13 @@ int main() {
           // In frenet add evenly 30m spaced points ahead of the starting
           // reference
           vector<double> next_wp0 =
-              getXY(car_s + 30, (2 + 4 * lane), map_waypoints_s,
+              getXY(car_s + 30, (2 + 4 * laneTrajectory), map_waypoints_s,
                     map_waypoints_x, map_waypoints_y);
           vector<double> next_wp1 =
-              getXY(car_s + 60, (2 + 4 * lane), map_waypoints_s,
+              getXY(car_s + 60, (2 + 4 * laneTrajectory), map_waypoints_s,
                     map_waypoints_x, map_waypoints_y);
           vector<double> next_wp2 =
-              getXY(car_s + 90, (2 + 4 * lane), map_waypoints_s,
+              getXY(car_s + 90, (2 + 4 * laneTrajectory), map_waypoints_s,
                     map_waypoints_x, map_waypoints_y);
 
           ptsx.push_back(next_wp0[0]);
