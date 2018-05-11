@@ -1,10 +1,7 @@
-
 #ifndef PREDICTION_H
 #define PREDICTION_H
 #include <iostream>
 #include <limits>
-#include <map>
-#include <random>
 #include <string>
 #include <vector>
 

@@ -4,24 +4,23 @@ StateMachine::StateMachine() : m_timer(m_defTransTime) {
   m_state = LANE_KEEPING;
 }
 
-
 void StateMachine::nextState() {
+  m_timer.tick();
+
   switch (m_state) {
     case LANE_KEEPING:
-      m_timer.tick();
       if (m_timer.isElapsed() && m_recommend_lc_left) {
         m_state = PREPARE_LC_LEFT;
-        m_timer.reset(m_defTransTime);  // allow immediate transition
+        m_timer.reset(m_defTransTime);  
       } else if (m_timer.isElapsed() && m_recommend_lc_right) {
         m_state = PREPARE_LC_RIGHT;
-        m_timer.reset(m_defTransTime);  // allow immediate transition
+        m_timer.reset(m_defTransTime);  
       } else {
         // stay
       }
       break;
 
     case PREPARE_LC_LEFT:
-      m_timer.tick();
       if (m_safe_to_finish) {
         m_state = LC_LEFT;
       } else if (m_timer.isElapsed()) {
@@ -33,7 +32,6 @@ void StateMachine::nextState() {
       break;
 
     case PREPARE_LC_RIGHT:
-      m_timer.tick();
       if (m_safe_to_finish) {
         m_state = LC_RIGHT;
       } else if (m_timer.isElapsed()) {

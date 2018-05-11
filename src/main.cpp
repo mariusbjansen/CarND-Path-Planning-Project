@@ -169,8 +169,6 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
 
-  funcTest();
-
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
@@ -297,8 +295,8 @@ int main() {
 
               // if using previous points can project s value out
               check_car_s += ((double)prev_size * .02 * v_egoLane);
-              // check s vlaues greater than mane and s gap
-              if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
+              // check s values greater than mine and s gap
+              if ((check_car_s > car_s) && ((check_car_s - car_s) < 35)) {
                 too_close = true;
               }
             }
@@ -415,12 +413,15 @@ int main() {
           // velocity determination
           double velOwn = 0.;
           double velRight = 0.;
+          double velRightRight = 0.;
           double velLeft = 0.;
+          double velLeftLeft = 0.;
 
           switch (lane) {
             case 0:
               velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 0);
               velRight = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
+              velRightRight = velocityTarAheadinLane(state_vect, ego_vehicle, 2);
               break;
             case 1:
               velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
@@ -430,16 +431,18 @@ int main() {
             case 2:
               velOwn = velocityTarAheadinLane(state_vect, ego_vehicle, 2);
               velLeft = velocityTarAheadinLane(state_vect, ego_vehicle, 1);
+              velLeftLeft = velocityTarAheadinLane(state_vect, ego_vehicle, 0);
               break;
           }
 
-          float threshVelToChange = 4.f;
+          double threshCompare = velOwn+2.;
+          static uint32_t notInBestLane = 0;
           // todo: left and right need to compete for better lane change direction!
           // todo: what about double lange changes? driving left, slower vehicle middle but right is free?!
-          if (velRight > (velOwn + threshVelToChange)) {
+          if (max(velRight,velRightRight) > threshCompare) {
             statemachine.m_recommend_lc_right = true;
             statemachine.m_recommend_lc_left = false;
-          } else if (velLeft > (velOwn + threshVelToChange)) {
+          } else if (max(velLeft, velLeftLeft) > threshCompare) {
             statemachine.m_recommend_lc_left = true;
             statemachine.m_recommend_lc_right = false;
           } else {

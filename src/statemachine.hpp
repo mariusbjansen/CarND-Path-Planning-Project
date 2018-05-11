@@ -2,10 +2,6 @@
 #define STATEMACHINE_H
 
 #include <iostream>
-#include <map>
-#include <random>
-#include <string>
-#include <vector>
 
 using namespace std;
 
@@ -29,7 +25,7 @@ class Timer {
       m_elapsed = false;
   }
 
-  bool isElapsed() { return m_elapsed; }
+  bool isElapsed() const { return m_elapsed; }
 
  private:
   uint32_t m_ticks;
@@ -64,10 +60,8 @@ public:
   bool m_safe_to_finish;
   bool m_lc_finished;
 
-  uint32_t m_defTransTime = 25;
+  uint32_t m_defTransTime = 35;
 };
-
-
 
 
 #endif  // STATEMACHINE_H

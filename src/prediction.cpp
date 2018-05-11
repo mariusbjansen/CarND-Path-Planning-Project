@@ -2,14 +2,11 @@
 #include <cmath>
 #include <iostream>
 #include <iterator>
-#include <map>
 #include <string>
 
-#include "main.hpp"
 #include "prediction.hpp"
+#include "main.hpp"
 #include "spline.h"
-
-void funcTest() { std::cout << "v_ego " << std::endl; }
 
 double absSize2D(double x, double y) { return sqrt(x * x + y * y); }
 
@@ -67,7 +64,7 @@ double velocityTarAheadinLane(const vector<VehicleState>& vehicles,
 
 bool isCollisionFree(const VehicleState& ego, const vector<VehicleState>& targets, uint8_t n_step) {
   bool collisionFree = true;
-  float minSafetyDistance = 7.;
+  float minSafetyDistance = 8.;
 
   Trajectory egoTraj = trajectoryCalc(ego, n_step);
 
