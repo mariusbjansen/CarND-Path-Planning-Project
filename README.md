@@ -41,7 +41,7 @@ I determine the velocity of the neighbor lanes: line 294-323 in main.cpp. Then I
 # State Machine
 My state machine looks like this:
 
-<img src="statemachine.png" width="520" alt="StateMachine" />
+<img src="statemachine.png" width="640" alt="StateMachine" />
 
 When the above mentioned lane change recommendation fulfills, the statemachine performs a transition to PREPARE_LC_LEFT/RIGHT. Within this state I already start to change the lateral displacement within the own lane in any case to speed lane change up.
 
