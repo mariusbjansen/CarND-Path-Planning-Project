@@ -65,7 +65,7 @@ double velocityTarAheadinLane(const vector<VehicleState>& vehicles,
 bool isCollisionFree(const VehicleState& ego,
                      const vector<VehicleState>& targets, uint8_t n_step) {
   bool collisionFree = true;
-  float minSafetyDistance = 12.;
+  float minSafetyDistance = 16.;
 
   Trajectory egoTraj = trajectoryCalc(ego, n_step);
 

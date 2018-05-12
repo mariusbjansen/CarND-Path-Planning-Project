@@ -196,7 +196,7 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  // start in lane 1;
+  // start in lane 1 = center;
   int lane = 1;
 
   // Have a reference velocity to target
@@ -230,7 +230,6 @@ int main() {
           double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
-
           double car_vx = car_speed * cos(deg2rad(car_yaw));
           double car_vy = car_speed * sin(deg2rad(car_yaw));
 
@@ -249,13 +248,8 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side of
           // the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
-
-          json msgJson;
-
-          // TODO: define a path made up of (x,y) points that the car will visit
-          // sequentially every .02 seconds
-
           int prev_size = previous_path_x.size();
+          json msgJson;
 
           if (prev_size > 0) {
             car_s = end_path_s;
@@ -263,12 +257,6 @@ int main() {
 
           bool too_close = false;
           double v_egoLane = 0.f;
-          double v_leftLane = 0.f;
-          double v_rightLane = 0.f;
-          bool safeLCLeft = true;
-          bool safeLCRight = true;
-          bool onceUnsafeLeft = false;
-          bool onceUnsafeRight = false;
 
           vector<VehicleState> state_vect;
           for (int i = 0; i < sensor_fusion.size(); i++) {
@@ -302,10 +290,12 @@ int main() {
             }
           }
 
+          // Number of prediction steps
           uint8_t n_step = 50;
+          // Ego trajectory for the next prediction steps
           Trajectory egoTraj = trajectoryCalc(ego_vehicle, n_step);
 
-          // recommendation
+          // recommendation for lane changes
           // velocity determination
           double velOwn = 0.;
           double velRight = 0.;
@@ -333,13 +323,13 @@ int main() {
           }
 
           double threshCompare = velOwn + 2.;
-          static uint32_t notInBestLane = 0;
           // todo: left and right need to compete for better lane change
           // direction!
           // todo: take distance into account?
           // todo: what about double lange changes? driving left, slower vehicle
           // middle but right is free?!
-          if (max(velRight, velRightRight) > threshCompare) {
+          if ((max(velRight, velRightRight) > threshCompare) &&
+              (max(velRight, velRightRight) > max(velLeft, velLeftLeft))) {
             statemachine.m_recommend_lc_right = true;
             statemachine.m_recommend_lc_left = false;
           } else if (max(velLeft, velLeftLeft) > threshCompare) {
@@ -352,7 +342,6 @@ int main() {
           }
 
           // safe to finish
-
           if (statemachine.getState() == StateMachine::PREPARE_LC_LEFT) {
             auto virtual_ego = ego_vehicle;
             virtual_ego.m_lane = Lane(virtual_ego.m_lane - 1);
@@ -368,10 +357,10 @@ int main() {
           }
 
           float laneTrajectory = lane;
+
+          // state machine transition
           statemachine.nextState();
 
-#define DEBUG
-#ifdef DEBUG
           switch (statemachine.getState()) {
             case StateMachine::LANE_KEEPING:
               cout << "LANE KEEPING" << endl;
@@ -395,7 +384,6 @@ int main() {
               cout << "PERFORM RIGHT" << endl;
               break;
           }
-#endif  // DEBUG
 
           double v_max = 29.5 * 1.5f;
           double rate_of_change = .224 * 1.5f;

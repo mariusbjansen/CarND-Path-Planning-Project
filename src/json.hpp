@@ -203,9 +203,8 @@ using uncvref_t =
 
 // taken from http://stackoverflow.com/a/26936864/266378
 template <typename T>
-using is_unscoped_enum =
-    std::integral_constant<bool, std::is_convertible<T, int>::value and
-                                     std::is_enum<T>::value>;
+using is_unscoped_enum = std::integral_constant<
+    bool, std::is_convertible<T, int>::value and std::is_enum<T>::value>;
 
 /*
 Implementation of two C++17 constructs: conjunction, negation. This is needed
@@ -483,9 +482,10 @@ struct has_from_json {
 template <typename BasicJsonType, typename T>
 struct has_non_default_from_json {
  private:
-  template <typename U, typename = enable_if_t<std::is_same<
-                            T, decltype(uncvref_t<U>::from_json(
-                                   std::declval<BasicJsonType>()))>::value>>
+  template <typename U,
+            typename = enable_if_t<
+                std::is_same<T, decltype(uncvref_t<U>::from_json(
+                                    std::declval<BasicJsonType>()))>::value>>
   static int detect(U&&);
   static void detect(...);
 
@@ -499,8 +499,9 @@ struct has_non_default_from_json {
 template <typename BasicJsonType, typename T>
 struct has_to_json {
  private:
-  template <typename U, typename = decltype(uncvref_t<U>::to_json(
-                            std::declval<BasicJsonType&>(), std::declval<T>()))>
+  template <typename U,
+            typename = decltype(uncvref_t<U>::to_json(
+                std::declval<BasicJsonType&>(), std::declval<T>()))>
   static int detect(U&&);
   static void detect(...);
 
@@ -1143,10 +1144,11 @@ class basic_json {
 #elif defined(__ICC) || defined(__INTEL_COMPILER)
     result["compiler"] = {{"family", "icc"}, {"version", __INTEL_COMPILER}};
 #elif defined(__GNUC__) || defined(__GNUG__)
-    result["compiler"] = {{"family", "gcc"},
-                          {"version", std::to_string(__GNUC__) + "." +
-                                          std::to_string(__GNUC_MINOR__) + "." +
-                                          std::to_string(__GNUC_PATCHLEVEL__)}};
+    result["compiler"] = {
+        {"family", "gcc"},
+        {"version",
+         std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." +
+             std::to_string(__GNUC_PATCHLEVEL__)}};
 #elif defined(__HP_cc) || defined(__HP_aCC)
     result["compiler"] = "hp"
 #elif defined(__IBMCPP__)
@@ -2428,8 +2430,8 @@ class basic_json {
 
   @since version 1.0.0
   */
-  basic_json(basic_json&& other) noexcept : m_type(std::move(other.m_type)),
-                                            m_value(std::move(other.m_value)) {
+  basic_json(basic_json&& other) noexcept
+      : m_type(std::move(other.m_type)), m_value(std::move(other.m_value)) {
     // check that passed value is valid
     other.assert_invariant();
 
@@ -8172,9 +8174,8 @@ class basic_json {
     primitive_iterator_t primitive_iterator;
 
     /// create an uninitialized internal_iterator
-    internal_iterator() noexcept : object_iterator(),
-                                   array_iterator(),
-                                   primitive_iterator() {}
+    internal_iterator() noexcept
+        : object_iterator(), array_iterator(), primitive_iterator() {}
   };
 
   /// proxy class for the iterator_wrapper functions
@@ -8190,8 +8191,8 @@ class basic_json {
       size_t array_index = 0;
 
      public:
-      explicit iteration_proxy_internal(IteratorType it) noexcept : anchor(it) {
-      }
+      explicit iteration_proxy_internal(IteratorType it) noexcept
+          : anchor(it) {}
 
       /// dereference operator (needed for range-based for)
       iteration_proxy_internal& operator*() { return *this; }
@@ -8355,8 +8356,8 @@ class basic_json {
     @param[in] other  iterator to copy from
     @note It is not checked whether @a other is initialized.
     */
-    iter_impl(const iter_impl& other) noexcept : m_object(other.m_object),
-                                                 m_it(other.m_it) {}
+    iter_impl(const iter_impl& other) noexcept
+        : m_object(other.m_object), m_it(other.m_it) {}
 
     /*!
     @brief copy assignment
@@ -8911,10 +8912,10 @@ class basic_json {
       literal_null,    ///< the `null` literal
       value_string,    ///< a string -- use get_string() for actual value
       value_unsigned,  ///< an unsigned integer -- use get_number() for actual
-                       ///value
+                       /// value
       value_integer,  ///< a signed integer -- use get_number() for actual value
       value_float,  ///< an floating point number -- use get_number() for actual
-                    ///value
+                    /// value
       begin_array,  ///< the character for array begin `[`
       begin_object,     ///< the character for object begin `{`
       end_array,        ///< the character for array end `]`
@@ -10170,8 +10171,9 @@ class basic_json {
       @param[in,out] val shall contain parsed value, or undefined value
       if could not parse
       */
-      template <typename T, typename = typename std::enable_if<
-                                std::is_arithmetic<T>::value>::type>
+      template <typename T,
+                typename =
+                    typename std::enable_if<std::is_arithmetic<T>::value>::type>
       bool to(T& val) const {
         return parse(val, std::is_integral<T>());
       }
