@@ -322,12 +322,9 @@ int main() {
               break;
           }
 
+
+          // policy: perform lane change left or right or none
           double threshCompare = velOwn + 2.;
-          // todo: left and right need to compete for better lane change
-          // direction!
-          // todo: take distance into account?
-          // todo: what about double lange changes? driving left, slower vehicle
-          // middle but right is free?!
           if ((max(velRight, velRightRight) > threshCompare) &&
               (max(velRight, velRightRight) > max(velLeft, velLeftLeft))) {
             statemachine.m_recommend_lc_right = true;

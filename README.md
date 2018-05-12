@@ -1,5 +1,76 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
+
+I am going quickly over the project rubric and then explain some of the code and my approach
+
+## The code compiles correctly.
+The code compiles with cmake and make. I added the files
+- spline.h (as seen in the walkthrough)
+- prediction.hpp (data structure vehicle, prediction, helpers)
+- prediction.cpp (impl)
+- statemachine.hpp (statemachine and timer)
+- statemachine.cpp (impl)
+## The car is able to drive at least 4.32 miles without incident..
+can be seen in the screenshot below
+## The car drives according to the speed limit.
+no incidents. No speeding.
+## Max Acceleration and Jerk are not Exceeded.
+no incidents. Acceleration and Jerk limits are kept.
+## Car does not have collisions.
+no incidents in the screnshot. But there are collisions in corner cases.
+## The car stays in its lane, except for the time between changing lanes.
+no incidents
+## The car is able to change lanes
+it is (will be described below how and when)
+## There is a reflection on how to generate paths.
+please see below
+
+# Reflection
+I used the startup code from the walkthrough video to basically stay in the lane and control the velocity. When there is a possible collision I make use of maximum deceleration and when there is none I try to go to max speed. You can definitely think of smarter approaches introducing a controller to match speed to the target object. Also only the vehicle in the lane which is set as target lane is regarded. During a lane change maneuver both starting and target lane actually would need to be regarded. Also an anticipation if a vehicle will enter oder leave the lane (cut-in/cut-out detection) would make sense. For the sake of simplicity this was not done.
+
+# Lane Change Recommendation
+I start by filling the state vectors of vehicles from the sensor data fusion if they are relevant (before and after the ego vehicle): line 261-275 in main.cpp
+
+Then velocity control by the startup code follows.
+
+I determine the velocity of the neighbor lanes: line 294-323 in main.cpp. Then I choose a policy if any of the neighbor lanes allows faster proceeding than ego lane. Also two lane changes are consideres. Use Case Example. I drive on the left lane. Middle lane (my right lane) is slower but right lane (my right right lane) is faster. line 326-339 in main.cpp.
+
+# State Machine
+My state machine looks like this
+<img src="statemachine.svg" width="520" alt="StateMachine" />
+
+When the above mentioned lane change recommendation fulfills, the statemachine performs a transition to PREPARE_LC_LEFT/RIGHT. Within this state I already start to change the lateral displacement within the own lane in any case.
+
+If it is then safe to change the lane (finish) line 341-353 in main.cpp and function collisionFree in prediction.cpp, I completely change the lane (be setting the lane variable to the neighbor lane).
+
+# Some Functions and Classes reviewed
+
+## absSize2D (prediction.hpp and prediction.cpp)
+Returns the size of a 2D vector
+## determine Lane (prediction.hpp and prediction.cpp)
+Returns the lane of ego or other vehicles by giving d in Frenet coordinates
+## isRelevant (prediction.hpp and prediction.cpp)
+Returns if object is relevant given ego s and target s in Frenet corrdinates
+## trajectoryCalc (prediction.hpp and prediction.cpp)
+Return a trajectory given a vehicle state and number of steps in cartesian coordinates
+## isCollisionFree (prediction.hpp and prediction.cpp)
+Return if a combination of trajectories is collision fre. Incorporates prediction given an ego and a number of target state vectors
+## velocityTarAheadinLane (prediction.hpp and prediction.cpp)
+Returns velocity of target ahead
+## StateMachine Class (statemachine.hpp and statemachine.cpp)
+Keeps track of current state and transition to other states.
+## Timer (statemachine.hpp and statemachine.cpp)
+Keeps track of time (actually it is only a counter and not a timer)
+
+
+# Trajectory
+Since I did not change the trajectory generation compared to the video tutorial, I keep this section short. The old trajectory (better to say, what is left of it - not driven over) is always returned by the simulator. So new points to the existing trajectory are added. These points are velocity dependent. Two points from the last trajectory are taken (if not existing take origin point instead) (line 405-433 in main.cpp) and then 3 anchor points are chosen for later spline interpolation (line 438-454 in main.cpp). The anchor points are 30, 60 and 90m aways from the starting point. Spline interpolation are done in car coordinate system rotated to deal with ambiguities. (line 458-466 in main.cpp). Spline generation is done in line 469 and 472 in main.cpp. The path is now filed with the previous path points and the content of the spline, see line 478-503) Then a transformation back to normaler after the rotation is performed (line 505-516 in main.cpp) and pushed to the trajectory for the simulator.
+
+
+original README below
+
+# CarND-Path-Planning-Project
+Self-Driving Car Engineer Nanodegree Program
    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).

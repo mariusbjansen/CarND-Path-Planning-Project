@@ -21,7 +21,7 @@ Lane determineLane(double d) {
 }
 
 bool isRelevant(double s, double ego_s) {
-  double thres_relevant = 45.;
+  double thres_relevant = 55.;
   if (fabs(s - ego_s) < thres_relevant) {
     return true;
   } else {
