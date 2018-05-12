@@ -1,60 +1,64 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
 
-I am going quickly over the project rubric and then explain some of the code and my approach
+I first go over the project rubric and then explain the code and my approach in detail.
 
 ## The code compiles correctly.
 The code compiles with cmake and make. I added the files
 - spline.h (as seen in the walkthrough)
 - prediction.hpp (data structure vehicle, prediction, helpers)
-- prediction.cpp (impl)
+- prediction.cpp (implementation)
 - statemachine.hpp (statemachine and timer)
-- statemachine.cpp (impl)
+- statemachine.cpp (implementation)
 ## The car is able to drive at least 4.32 miles without incident..
-can be seen in the screenshot below
+Can be seen in the screenshot below
+
+<img src="screenshot_simulator.png" width="520" alt="Simulator" />
+
 ## The car drives according to the speed limit.
-no incidents. No speeding.
+No incidents. No speeding.
 ## Max Acceleration and Jerk are not Exceeded.
-no incidents. Acceleration and Jerk limits are kept.
+No incidents. Acceleration and Jerk limits are kept.
 ## Car does not have collisions.
-no incidents in the screnshot. But there are collisions in corner cases.
+No incidents in the screnshot. But there are collisions in corner cases.
 ## The car stays in its lane, except for the time between changing lanes.
-no incidents
+No incidents
 ## The car is able to change lanes
-it is (will be described below how and when)
+It is (will be described below how and when)
 ## There is a reflection on how to generate paths.
-please see below
+Please see below
 
 # Reflection
-I used the startup code from the walkthrough video to basically stay in the lane and control the velocity. When there is a possible collision I make use of maximum deceleration and when there is none I try to go to max speed. You can definitely think of smarter approaches introducing a controller to match speed to the target object. Also only the vehicle in the lane which is set as target lane is regarded. During a lane change maneuver both starting and target lane actually would need to be regarded. Also an anticipation if a vehicle will enter oder leave the lane (cut-in/cut-out detection) would make sense. For the sake of simplicity this was not done.
+I used the startup code from the walkthrough video to stay in the lane and control the velocity. When there is a possible collision I make use of maximum deceleration and when there is none, I try to go to max speed. You can definitely think of smarter approaches introducing a controller to match speed to the target object. Also only the vehicle in the lane which is set as target lane is regarded. During a lane change maneuver both starting and target lane actually would need to be regarded. Also an anticipation if a vehicle will enter oder leave the lane (cut-in/cut-out detection) would make sense. For the sake of simplicity this was not done.
 
 # Lane Change Recommendation
 I start by filling the state vectors of vehicles from the sensor data fusion if they are relevant (before and after the ego vehicle): line 261-275 in main.cpp
 
 Then velocity control by the startup code follows.
 
-I determine the velocity of the neighbor lanes: line 294-323 in main.cpp. Then I choose a policy if any of the neighbor lanes allows faster proceeding than ego lane. Also two lane changes are consideres. Use Case Example. I drive on the left lane. Middle lane (my right lane) is slower but right lane (my right right lane) is faster. line 326-339 in main.cpp.
+I determine the velocity of the neighbor lanes: line 294-323 in main.cpp. Then I choose a policy if any of the neighbor lanes allows faster proceeding than ego lane. Also two lane changes are consideres. Use Case Example: Ego driving on the left lane. Middle lane (ego right lane) is slower but right lane (ego right right lane) is faster. line 326-339 in main.cpp.
 
 # State Machine
-My state machine looks like this
-<img src="statemachine.svg" width="520" alt="StateMachine" />
+My state machine looks like this:
 
-When the above mentioned lane change recommendation fulfills, the statemachine performs a transition to PREPARE_LC_LEFT/RIGHT. Within this state I already start to change the lateral displacement within the own lane in any case.
+<img src="statemachine.png" width="520" alt="StateMachine" />
 
-If it is then safe to change the lane (finish) line 341-353 in main.cpp and function collisionFree in prediction.cpp, I completely change the lane (be setting the lane variable to the neighbor lane).
+When the above mentioned lane change recommendation fulfills, the statemachine performs a transition to PREPARE_LC_LEFT/RIGHT. Within this state I already start to change the lateral displacement within the own lane in any case to speed lane change up.
+
+If it is then safe to change the lane (finish) line 341-353 in main.cpp and function collisionFree in prediction.cpp, I completely change the lane (by setting the lane variable to the neighbor lane). If the situation is not becoming safe after some time (parameter), I return to LANE_KEEPING and stay there for some time (parameter).
 
 # Some Functions and Classes reviewed
 
 ## absSize2D (prediction.hpp and prediction.cpp)
 Returns the size of a 2D vector
 ## determine Lane (prediction.hpp and prediction.cpp)
-Returns the lane of ego or other vehicles by giving d in Frenet coordinates
+Returns the lane of ego or other vehicles by given d in Frenet coordinates
 ## isRelevant (prediction.hpp and prediction.cpp)
-Returns if object is relevant given ego s and target s in Frenet corrdinates
+Returns if an object is relevant given ego s and target s in Frenet corrdinates
 ## trajectoryCalc (prediction.hpp and prediction.cpp)
-Return a trajectory given a vehicle state and number of steps in cartesian coordinates
+Returns a trajectory given a vehicle state and number of steps in cartesian coordinates
 ## isCollisionFree (prediction.hpp and prediction.cpp)
-Return if a combination of trajectories is collision fre. Incorporates prediction given an ego and a number of target state vectors
+Returns if a combination of trajectories is collision free. Incorporates prediction given an ego and a number of target state vectors
 ## velocityTarAheadinLane (prediction.hpp and prediction.cpp)
 Returns velocity of target ahead
 ## StateMachine Class (statemachine.hpp and statemachine.cpp)
@@ -64,10 +68,13 @@ Keeps track of time (actually it is only a counter and not a timer)
 
 
 # Trajectory
-Since I did not change the trajectory generation compared to the video tutorial, I keep this section short. The old trajectory (better to say, what is left of it - not driven over) is always returned by the simulator. So new points to the existing trajectory are added. These points are velocity dependent. Two points from the last trajectory are taken (if not existing take origin point instead) (line 405-433 in main.cpp) and then 3 anchor points are chosen for later spline interpolation (line 438-454 in main.cpp). The anchor points are 30, 60 and 90m aways from the starting point. Spline interpolation are done in car coordinate system rotated to deal with ambiguities. (line 458-466 in main.cpp). Spline generation is done in line 469 and 472 in main.cpp. The path is now filed with the previous path points and the content of the spline, see line 478-503) Then a transformation back to normaler after the rotation is performed (line 505-516 in main.cpp) and pushed to the trajectory for the simulator.
+Since I did not change the trajectory generation compared to the video tutorial, I keep this section short. 
+
+The old trajectory (better to say, what is left of it - not driven over) is always returned by the simulator. So new points to the existing trajectory are added. These points are velocity dependent. Two points from the last trajectory are taken (if not existing take origin point instead) (line 405-433 in main.cpp) and then 3 anchor points are chosen for later spline interpolation (line 438-454 in main.cpp). The anchor points are 30, 60 and 90m away from the starting point. Spline interpolation is done in car coordinate system and rotated to deal with ambiguities. (line 458-466 in main.cpp). Spline generation is done in line 469 and 472 in main.cpp. The path is now filed with the previous path points and the content of the spline, see (line 478-503). Then a transformation back to normal, since a rotation was performed (line 505-516 in main.cpp) and pushed to the trajectory for the simulator.
 
 
-original README below
+original README below ...
+
 
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
